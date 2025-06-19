@@ -114,6 +114,7 @@ export class RestaurantService {
       if (row.length >= 5) {
         const item: MenuItem = {
           section: row[0] || 'Other',
+          category: row[0] || 'Other',
           name: row[1] || '',
           prices: this.parseItemPrices(row[2] || ''),
           period: row[3] || 'both',

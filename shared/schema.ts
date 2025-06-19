@@ -27,6 +27,7 @@ export const RestaurantSchema = z.object({
 
 export const MenuItemSchema = z.object({
   section: z.string(),
+  category: z.string(),
   name: z.string(),
   prices: z.record(z.string(), z.number()),
   period: z.string(),
@@ -61,8 +62,19 @@ export const OrderSchema = z.object({
   restaurant: RestaurantSchema
 });
 
+// User schema for authentication (minimal implementation)
+export const UserSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  email: z.string().email().optional(),
+});
+
+export const InsertUserSchema = UserSchema.omit({ id: true });
+
 export type TimeOfDay = z.infer<typeof TimeOfDaySchema>;
 export type Restaurant = z.infer<typeof RestaurantSchema>;
 export type MenuItem = z.infer<typeof MenuItemSchema>;
 export type OrderItem = z.infer<typeof OrderItemSchema>;
 export type Order = z.infer<typeof OrderSchema>;
+export type User = z.infer<typeof UserSchema>;
+export type InsertUser = z.infer<typeof InsertUserSchema>;

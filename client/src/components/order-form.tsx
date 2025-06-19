@@ -1,18 +1,14 @@
 import { useState, useEffect } from "react";
-import { MenuItem, Restaurant, OrderItem } from "@shared/schema";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
+import { Trash2, Send, Store, Truck, Plus } from "lucide-react";
+import { Restaurant, MenuItem } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Minus, ShoppingCart } from "lucide-react";
 
 interface OrderFormProps {
   restaurant: Restaurant;
@@ -38,18 +34,11 @@ interface OrderFormData {
   pickupTime: string;
 }
 
-const HARDCODED_CATEGORIES = [
-  'main', 'drink', 'sandwish', 'seafood', 'pasta', 'soup', 'patty', 'cake',
-  'salad', 'wrap', 'ice cream', 'slushey', 'smoothie', 'burger', 'chicken',
-  'chicken combo', 'meal combo', 'combo', 'porridge', 'loaves', 'tacos',
-  'boritos', 'pizzas', 'desserts', 'juice', 'punch', 'hotdogs', 'others'
-];
-
 export default function OrderForm({ restaurant, menuItems, selectedItem, onOrderComplete }: OrderFormProps) {
   const { toast } = useToast();
-  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [formData, setFormData] = useState<OrderFormData>({
-    selectedCategory: selectedItem?.section.toLowerCase() || '',
+    selectedCategory: '',
     selectedMenuItem: selectedItem || null,
     selectedSize: '',
     selectedSpecials: new Set(),
@@ -62,17 +51,24 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
     customerName: '',
     deliveryOption: 'pickup',
     deliveryAddress: '',
-    pickupTime: ''
+    pickupTime: '',
   });
 
-  const mainItems = menuItems.filter(item => item.section.toLowerCase() === 'main');
-  const availableCategories = HARDCODED_CATEGORIES.filter(cat =>
-    menuItems.some(item => item.section.toLowerCase() === cat.toLowerCase())
-  );
+  // Group menu items by category
+  const menuByCategory = menuItems.reduce((acc, item) => {
+    if (!acc[item.category]) {
+      acc[item.category] = [];
+    }
+    acc[item.category].push(item);
+    return acc;
+  }, {} as Record<string, MenuItem[]>);
 
+  const categories = Object.keys(menuByCategory);
+  const mainItems = menuByCategory['main'] || [];
+
+  // Load saved state from localStorage
   useEffect(() => {
-    // Load saved state from localStorage
-    const savedOrders = localStorage.getItem('orders');
+    const savedOrders = localStorage.getItem(`orders_${restaurant.id}`);
     const savedCustomerName = localStorage.getItem('customerName');
     const savedDeliveryOption = localStorage.getItem('deliveryOption');
     const savedDeliveryAddress = localStorage.getItem('deliveryAddress');
@@ -82,7 +78,7 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       try {
         setOrders(JSON.parse(savedOrders));
       } catch (e) {
-        console.error('Error parsing saved orders:', e);
+        console.error('Error loading saved orders:', e);
       }
     }
 
@@ -91,12 +87,13 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       customerName: savedCustomerName || '',
       deliveryOption: (savedDeliveryOption as 'pickup' | 'delivery') || 'pickup',
       deliveryAddress: savedDeliveryAddress || '',
-      pickupTime: savedPickupTime || ''
+      pickupTime: savedPickupTime || '',
     }));
-  }, []);
+  }, [restaurant.id]);
 
+  // Save state to localStorage
   const saveState = () => {
-    localStorage.setItem('orders', JSON.stringify(orders));
+    localStorage.setItem(`orders_${restaurant.id}`, JSON.stringify(orders));
     localStorage.setItem('customerName', formData.customerName);
     localStorage.setItem('deliveryOption', formData.deliveryOption);
     localStorage.setItem('deliveryAddress', formData.deliveryAddress);
@@ -111,8 +108,46 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
-  const resetSelection = () => {
+  // Handle special selection with choose one logic and caps
+  const handleSpecialChange = (special: string, checked: boolean, isSecondMain: boolean = false) => {
+    const menuItem = isSecondMain ? formData.selectedSecondMain : formData.selectedMenuItem;
+    if (!menuItem) return;
+
+    const currentSpecials = isSecondMain ? formData.selectedSecondMainSpecials : formData.selectedSpecials;
+    const newSpecials = new Set(currentSpecials);
+
+    if (checked) {
+      // If "choose one" option, clear existing selections
+      if (menuItem.specialOption === 'choose one') {
+        newSpecials.clear();
+      }
+      
+      // Check if we're at the cap
+      if (menuItem.specialCap === null || newSpecials.size < menuItem.specialCap) {
+        newSpecials.add(special);
+      } else {
+        toast({
+          title: "Special Limit Reached",
+          description: `You can only select ${menuItem.specialCap} special(s)`,
+          variant: "destructive"
+        });
+        return;
+      }
+    } else {
+      newSpecials.delete(special);
+    }
+
+    if (isSecondMain) {
+      updateFormData({ selectedSecondMainSpecials: newSpecials });
+    } else {
+      updateFormData({ selectedSpecials: newSpecials });
+    }
+  };
+
+  // Handle category change
+  const handleCategoryChange = (category: string) => {
     updateFormData({
+      selectedCategory: category,
       selectedMenuItem: null,
       selectedSize: '',
       selectedSpecials: new Set(),
@@ -121,14 +156,41 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       selectedGravey: '',
       isMixFood: false,
       selectedSecondMain: null,
-      selectedSecondMainSpecials: new Set()
+      selectedSecondMainSpecials: new Set(),
     });
+  };
+
+  // Handle menu item change
+  const handleMenuItemChange = (itemName: string) => {
+    const item = menuItems.find(m => m.name === itemName) || null;
+    updateFormData({
+      selectedMenuItem: item,
+      selectedSize: '',
+      selectedSpecials: new Set(),
+      selectedSide: '',
+      selectedVeg: '',
+      selectedGravey: '',
+    });
+  };
+
+  // Handle mix food toggle
+  const handleMixFoodChange = (isMix: boolean) => {
+    updateFormData({
+      isMixFood: isMix,
+      selectedSecondMain: null,
+      selectedSecondMainSpecials: new Set(),
+    });
+
+    // If enabling mix food, ensure size is Med or Lrg
+    if (isMix && formData.selectedSize && !['Med', 'Lrg'].includes(formData.selectedSize)) {
+      updateFormData({ selectedSize: 'Med' });
+    }
   };
 
   const addToOrder = () => {
     if (!formData.selectedMenuItem || !formData.selectedSize) {
       toast({
-        title: "Missing Information",
+        title: "Missing Selection",
         description: "Please select an item and size",
         variant: "destructive"
       });
@@ -145,55 +207,52 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       return;
     }
 
-    if (formData.selectedCategory === 'main' && formData.isMixFood && 
-        (formData.selectedSize !== 'Med' && formData.selectedSize !== 'Lrg')) {
+    if (formData.selectedCategory === 'main' && 
+        formData.isMixFood && 
+        formData.selectedSize !== 'Med' && formData.selectedSize !== 'Lrg') {
       toast({
-        title: "Invalid Size for Mix",
+        title: "Invalid Size",
         description: "Mix meals are only available in Medium or Large size",
         variant: "destructive"
       });
       return;
     }
 
-    const orderItem: OrderItem = {
+    const newOrder = {
       item: formData.selectedMenuItem,
       size: formData.selectedSize,
       specials: Array.from(formData.selectedSpecials),
-      side: formData.selectedSide || null,
-      veg: formData.selectedVeg || null,
-      gravey: formData.selectedGravey || null,
+      side: formData.selectedSide,
+      veg: formData.selectedVeg,
+      gravey: formData.selectedGravey,
       isMix: formData.selectedCategory === 'main' && formData.isMixFood,
-      secondMain: formData.isMixFood ? formData.selectedSecondMain : undefined,
-      secondMainSpecials: formData.isMixFood ? Array.from(formData.selectedSecondMainSpecials) : undefined
+      secondMain: formData.selectedCategory === 'main' && formData.isMixFood ? formData.selectedSecondMain : null,
+      secondMainSpecials: formData.selectedCategory === 'main' && formData.isMixFood ? Array.from(formData.selectedSecondMainSpecials) : [],
     };
 
-    setOrders(prev => [...prev, orderItem]);
-    resetSelection();
-    
+    setOrders(prev => [...prev, newOrder]);
+
+    // Reset form after adding
+    updateFormData({
+      selectedMenuItem: null,
+      selectedSize: '',
+      selectedSpecials: new Set(),
+      selectedSide: '',
+      selectedVeg: '',
+      selectedGravey: '',
+      isMixFood: false,
+      selectedSecondMain: null,
+      selectedSecondMainSpecials: new Set(),
+    });
+
     toast({
-      title: "Item Added",
-      description: `${formData.selectedMenuItem.name} has been added to your order`,
+      title: "Added to Order",
+      description: "Item has been added to your order",
     });
   };
 
   const removeFromOrder = (index: number) => {
     setOrders(prev => prev.filter((_, i) => i !== index));
-    toast({
-      title: "Item Removed",
-      description: "Item has been removed from your order",
-    });
-  };
-
-  const calculateOrderTotal = () => {
-    return orders.reduce((total, order) => {
-      let price = 0;
-      if (order.isMix && restaurant.mixPrices[order.size || '']) {
-        price = restaurant.mixPrices[order.size || ''];
-      } else {
-        price = order.item.prices[order.size || ''] || Object.values(order.item.prices)[0] || 0;
-      }
-      return total + price;
-    }, 0);
   };
 
   const buildOrderSummary = () => {
@@ -201,12 +260,13 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
     let totalPrice = 0;
 
     orders.forEach((order, index) => {
+      const item = order.item;
       summary += `Order #${index + 1}${order.isMix ? ' (Mix)' : ''}:\n`;
-      summary += `Item: ${order.item.name}\n`;
+      summary += `Item: ${item.name}\n`;
       
       if (order.isMix && order.secondMain) {
         summary += `Second Item: ${order.secondMain.name}\n`;
-        if (order.secondMainSpecials && order.secondMainSpecials.length > 0) {
+        if (order.secondMainSpecials.length > 0) {
           summary += `Second Item Specials: ${order.secondMainSpecials.join(', ')}\n`;
         }
       }
@@ -219,12 +279,9 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
         summary += `Specials: ${order.specials.join(', ')}\n`;
       }
 
-      let price = 0;
-      if (order.isMix && restaurant.mixPrices[order.size || '']) {
-        price = restaurant.mixPrices[order.size || ''];
-      } else {
-        price = order.item.prices[order.size || ''] || Object.values(order.item.prices)[0] || 0;
-      }
+      const price = order.isMix ? 
+        (restaurant.mixPrices?.[order.size] || 0) : 
+        (item.prices[order.size] || 0);
       
       totalPrice += price;
       summary += `Price: $${price.toFixed(2)}\n\n`;
@@ -238,22 +295,22 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
     if (orders.length === 0) {
       toast({
         title: "Empty Order",
-        description: "Please add items to your order",
+        description: "Please add items to your order first",
         variant: "destructive"
       });
       return;
     }
 
-    if (!formData.customerName.trim()) {
+    if (!formData.customerName) {
       toast({
-        title: "Missing Name",
+        title: "Missing Information",
         description: "Please enter your name",
         variant: "destructive"
       });
       return;
     }
 
-    if (formData.deliveryOption === 'delivery' && !formData.deliveryAddress.trim()) {
+    if (formData.deliveryOption === 'delivery' && !formData.deliveryAddress) {
       toast({
         title: "Missing Address",
         description: "Please enter your delivery address",
@@ -262,9 +319,9 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       return;
     }
 
-    if (formData.deliveryOption === 'pickup' && !formData.pickupTime.trim()) {
+    if (formData.deliveryOption === 'pickup' && !formData.pickupTime) {
       toast({
-        title: "Missing Pickup Time",
+        title: "Missing Time",
         description: "Please enter your pickup time",
         variant: "destructive"
       });
@@ -272,87 +329,82 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
     }
 
     const orderSummary = buildOrderSummary();
-    const deliveryInfo = formData.deliveryOption === 'delivery'
-      ? `Delivery Address: ${formData.deliveryAddress}`
-      : `Pickup Time: ${formData.pickupTime}`;
-
-    const message = `Hello ${restaurant.name}, I would like to place an order:\n\n${orderSummary}\n\nName: ${formData.customerName}\n${deliveryInfo}`;
-    const whatsappUrl = `https://wa.me/${restaurant.whatsAppNumber}?text=${encodeURIComponent(message)}`;
-
-    window.open(whatsappUrl, '_blank');
+    const phoneNumber = restaurant.whatsAppNumber;
+    const message = encodeURIComponent(
+      `Hello ${restaurant.name} i would like to place an order for:\n${orderSummary}\nName: ${formData.customerName}\n${
+        formData.deliveryOption === 'delivery' 
+          ? `Delivery Address: ${formData.deliveryAddress}` 
+          : `Pickup Time: ${formData.pickupTime}`
+      }`
+    );
     
-    // Clear orders after successful send
-    setOrders([]);
-    localStorage.removeItem('orders');
-    
+    const url = `https://wa.me/${phoneNumber}?text=${message}`;
+    window.open(url, '_blank');
+
+    toast({
+      title: "Order Sent",
+      description: "Opening WhatsApp to send your order",
+    });
+
     if (onOrderComplete) {
       onOrderComplete();
     }
-
-    toast({
-      title: "Order Sent!",
-      description: "Your order has been sent via WhatsApp",
-    });
   };
-
-  const categoryItems = formData.selectedCategory
-    ? menuItems.filter(item => item.section.toLowerCase() === formData.selectedCategory.toLowerCase())
-    : [];
 
   return (
     <div className="space-y-6">
-      {/* Add Items Section */}
+      {/* Order Form */}
       <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Add Items</h3>
-          
+        <CardHeader>
+          <CardTitle>Place Your Order</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           {/* Category Selection */}
-          <div className="space-y-4">
-            <div>
-              <Label>Select Category</Label>
-              <Select
-                value={formData.selectedCategory}
-                onValueChange={(value) => {
-                  updateFormData({ selectedCategory: value });
-                  resetSelection();
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCategories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <Label>Select Category</Label>
+            <Select 
+              value={formData.selectedCategory} 
+              onValueChange={handleCategoryChange}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map(category => (
+                  <SelectItem key={category} value={category}>
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            {/* Menu Item Selection */}
-            {formData.selectedCategory && (
+          {formData.selectedCategory && (
+            <>
+              {/* Mix Food Toggle for Main Category */}
+              {formData.selectedCategory === 'main' && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="mixFood"
+                    checked={formData.isMixFood}
+                    onCheckedChange={handleMixFoodChange}
+                  />
+                  <Label htmlFor="mixFood">Mix Food (2 mains in 1 meal)</Label>
+                </div>
+              )}
+
+              {/* Menu Item Selection */}
               <div>
-                <Label>Select Menu Item</Label>
-                <Select
-                  value={formData.selectedMenuItem?.name || ''}
-                  onValueChange={(value) => {
-                    const item = categoryItems.find(item => item.name === value);
-                    updateFormData({
-                      selectedMenuItem: item || null,
-                      selectedSize: '',
-                      selectedSpecials: new Set(),
-                      selectedSide: '',
-                      selectedVeg: '',
-                      selectedGravey: ''
-                    });
-                  }}
+                <Label>Select Item</Label>
+                <Select 
+                  value={formData.selectedMenuItem?.name || ''} 
+                  onValueChange={handleMenuItemChange}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Menu Item" />
+                    <SelectValue placeholder="Choose an item" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categoryItems.map(item => (
+                    {menuByCategory[formData.selectedCategory]?.map(item => (
                       <SelectItem key={item.name} value={item.name}>
                         {item.name}
                       </SelectItem>
@@ -360,254 +412,244 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
                   </SelectContent>
                 </Select>
               </div>
-            )}
 
-            {/* Mix Food Toggle for Main Items */}
-            {formData.selectedCategory === 'main' && Object.keys(restaurant.mixPrices).length > 0 && (
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="mix-food"
-                  checked={formData.isMixFood}
-                  onCheckedChange={(checked) => {
-                    updateFormData({
-                      isMixFood: checked,
-                      selectedSecondMain: null,
-                      selectedSecondMainSpecials: new Set()
-                    });
-                    if (checked && formData.selectedSize && 
-                        formData.selectedSize !== 'Med' && formData.selectedSize !== 'Lrg') {
-                      updateFormData({ selectedSize: '' });
-                    }
-                  }}
-                />
-                <Label htmlFor="mix-food">Mix Food</Label>
-              </div>
-            )}
-
-            {/* Second Main Selection for Mix */}
-            {formData.isMixFood && (
-              <div>
-                <Label>Select Second Main</Label>
-                <Select
-                  value={formData.selectedSecondMain?.name || ''}
-                  onValueChange={(value) => {
-                    const item = mainItems.find(item => item.name === value);
-                    updateFormData({ selectedSecondMain: item || null });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Second Main" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mainItems
-                      .filter(item => item.name !== formData.selectedMenuItem?.name)
-                      .map(item => (
-                        <SelectItem key={item.name} value={item.name}>
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Size Selection */}
-            {formData.selectedMenuItem && (
-              <div>
-                <Label>Size</Label>
-                <Select
-                  value={formData.selectedSize}
-                  onValueChange={(value) => updateFormData({ selectedSize: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Size" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(formData.selectedMenuItem.prices).map(size => (
-                      <SelectItem key={size} value={size}>
-                        {size} - ${formData.selectedMenuItem!.prices[size]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Specials Selection */}
-            {formData.selectedMenuItem && formData.selectedMenuItem.specials.length > 0 && (
-              <div>
-                <Label>Specials</Label>
-                <div className="space-y-2 mt-2">
-                  {formData.selectedMenuItem.specials.map(special => (
-                    <div key={special} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={special}
-                        checked={formData.selectedSpecials.has(special)}
-                        onCheckedChange={(checked) => {
-                          const newSpecials = new Set(formData.selectedSpecials);
-                          if (checked) {
-                            newSpecials.add(special);
-                          } else {
-                            newSpecials.delete(special);
-                          }
-                          updateFormData({ selectedSpecials: newSpecials });
-                        }}
-                      />
-                      <Label htmlFor={special}>{special}</Label>
-                    </div>
-                  ))}
+              {/* Second Main for Mix Food */}
+              {formData.isMixFood && formData.selectedCategory === 'main' && formData.selectedMenuItem && (
+                <div>
+                  <Label>Select Second Main Dish</Label>
+                  <Select 
+                    value={formData.selectedSecondMain?.name || ''} 
+                    onValueChange={(itemName) => {
+                      const item = mainItems.find(m => m.name === itemName) || null;
+                      updateFormData({ 
+                        selectedSecondMain: item,
+                        selectedSecondMainSpecials: new Set()
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose second main" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mainItems
+                        .filter(item => item.name !== formData.selectedMenuItem?.name)
+                        .map(item => (
+                          <SelectItem key={item.name} value={item.name}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Sides Selection */}
-            {formData.selectedMenuItem && formData.selectedMenuItem.sides.length > 0 && (
-              <div>
-                <Label>Sides</Label>
-                <Select
-                  value={formData.selectedSide}
-                  onValueChange={(value) => updateFormData({ selectedSide: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Side" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.selectedMenuItem.sides.map(side => (
-                      <SelectItem key={side} value={side}>
-                        {side}
-                      </SelectItem>
+              {/* Second Main Specials */}
+              {formData.selectedSecondMain && formData.selectedSecondMain.specials.length > 0 && (
+                <div>
+                  <Label>Second Item Specials</Label>
+                  <div className="space-y-2">
+                    {formData.selectedSecondMain.specials.map(special => (
+                      <div key={special} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`second-special-${special}`}
+                          checked={formData.selectedSecondMainSpecials.has(special)}
+                          onCheckedChange={(checked) => handleSpecialChange(special, checked as boolean, true)}
+                        />
+                        <Label htmlFor={`second-special-${special}`}>{special}</Label>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                  </div>
+                </div>
+              )}
 
-            {/* Vegetables Selection */}
-            {formData.selectedMenuItem && formData.selectedMenuItem.veg.length > 0 && (
-              <div>
-                <Label>Vegetables</Label>
-                <Select
-                  value={formData.selectedVeg}
-                  onValueChange={(value) => updateFormData({ selectedVeg: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Vegetable" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.selectedMenuItem.veg.map(veg => (
-                      <SelectItem key={veg} value={veg}>
-                        {veg}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+              {formData.selectedMenuItem && (
+                <>
+                  {/* Size Selection */}
+                  <div>
+                    <Label>Select Size</Label>
+                    <Select 
+                      value={formData.selectedSize} 
+                      onValueChange={(size) => updateFormData({ selectedSize: size })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(formData.isMixFood && formData.selectedCategory === 'main' 
+                          ? ['Med', 'Lrg']
+                          : Object.keys(formData.selectedMenuItem.prices)
+                        ).map(size => (
+                          <SelectItem key={size} value={size}>
+                            {size === '' ? 'Regular' : size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            {/* Gravy Selection */}
-            {formData.selectedMenuItem && formData.selectedMenuItem.gravey.length > 0 && (
-              <div>
-                <Label>Gravy</Label>
-                <Select
-                  value={formData.selectedGravey}
-                  onValueChange={(value) => updateFormData({ selectedGravey: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Gravy" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.selectedMenuItem.gravey.map(gravy => (
-                      <SelectItem key={gravy} value={gravy}>
-                        {gravy}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                  {/* Specials */}
+                  {formData.selectedMenuItem.specials.length > 0 && (
+                    <div>
+                      <Label>Select Specials</Label>
+                      <div className="space-y-2">
+                        {formData.selectedMenuItem.specials.map(special => (
+                          <div key={special} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`special-${special}`}
+                              checked={formData.selectedSpecials.has(special)}
+                              onCheckedChange={(checked) => handleSpecialChange(special, checked as boolean)}
+                            />
+                            <Label htmlFor={`special-${special}`}>{special}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-            <Button 
-              onClick={addToOrder}
-              disabled={!formData.selectedMenuItem || !formData.selectedSize}
-              className="w-full bg-secondary hover:bg-secondary/90"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add to Order
-            </Button>
-          </div>
+                  {/* Sides */}
+                  {formData.selectedMenuItem.sides.length > 0 && (
+                    <div>
+                      <Label>Select Side</Label>
+                      <Select 
+                        value={formData.selectedSide} 
+                        onValueChange={(side) => updateFormData({ selectedSide: side })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a side" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formData.selectedMenuItem.sides.map(side => (
+                            <SelectItem key={side} value={side}>
+                              {side}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Vegetables */}
+                  {formData.selectedMenuItem.veg.length > 0 && (
+                    <div>
+                      <Label>Select Vegetable</Label>
+                      <Select 
+                        value={formData.selectedVeg} 
+                        onValueChange={(veg) => updateFormData({ selectedVeg: veg })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a vegetable" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formData.selectedMenuItem.veg.map(veg => (
+                            <SelectItem key={veg} value={veg}>
+                              {veg}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {/* Gravy */}
+                  {formData.selectedMenuItem.gravey.length > 0 && (
+                    <div>
+                      <Label>Select Gravy</Label>
+                      <Select 
+                        value={formData.selectedGravey} 
+                        onValueChange={(gravey) => updateFormData({ selectedGravey: gravey })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose gravy" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {formData.selectedMenuItem.gravey.map(gravey => (
+                            <SelectItem key={gravey} value={gravey}>
+                              {gravey}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <Button onClick={addToOrder} className="w-full">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to Order
+                  </Button>
+                </>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Current Orders */}
+      {/* Order Summary */}
       {orders.length > 0 && (
         <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              Current Orders ({orders.length})
-            </h3>
-            <div className="space-y-3">
-              {orders.map((order, index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="font-medium">
-                        {order.item.name}
-                        {order.isMix && <Badge className="ml-2">Mix</Badge>}
-                      </h4>
-                      {order.isMix && order.secondMain && (
-                        <p className="text-sm text-gray-600">
-                          + {order.secondMain.name}
-                        </p>
-                      )}
+          <CardHeader>
+            <CardTitle>Order Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {orders.map((order, index) => {
+                const item = order.item;
+                const price = order.isMix ? 
+                  (restaurant.mixPrices?.[order.size] || 0) : 
+                  (item.prices[order.size] || 0);
+
+                return (
+                  <div key={index} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {order.isMix ? 'Mix Meal' : item.name} - ${price.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div>Size: {order.size}</div>
+                          <div>Main 1: {item.name}</div>
+                          {order.specials.length > 0 && (
+                            <div>Specials: {order.specials.join(', ')}</div>
+                          )}
+                          {order.side && <div>Side: {order.side}</div>}
+                          {order.veg && <div>Vegetable: {order.veg}</div>}
+                          {order.gravey && <div>Gravy: {order.gravey}</div>}
+                          {order.isMix && order.secondMain && (
+                            <>
+                              <div>Main 2: {order.secondMain.name}</div>
+                              {order.secondMainSpecials.length > 0 && (
+                                <div>Second Item Specials: {order.secondMainSpecials.join(', ')}</div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeFromOrder(index)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFromOrder(index)}
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
                   </div>
-                  
-                  <div className="text-sm text-gray-600 space-y-1">
-                    {order.size && <div>Size: {order.size}</div>}
-                    {order.side && <div>Side: {order.side}</div>}
-                    {order.veg && <div>Vegetable: {order.veg}</div>}
-                    {order.gravey && <div>Gravy: {order.gravey}</div>}
-                    {order.specials.length > 0 && (
-                      <div>Specials: {order.specials.join(', ')}</div>
-                    )}
-                  </div>
-                  
-                  <div className="text-right mt-2">
-                    <span className="font-medium text-secondary">
-                      ${order.isMix && restaurant.mixPrices[order.size || '']
-                        ? restaurant.mixPrices[order.size || '']
-                        : order.item.prices[order.size || ''] || Object.values(order.item.prices)[0] || 0}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              
-              <Separator />
-              <div className="flex justify-between items-center font-semibold text-lg">
-                <span>Total:</span>
-                <span className="text-secondary">${calculateOrderTotal().toFixed(2)}</span>
-              </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Customer Information */}
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Customer Information</h3>
-          <div className="space-y-4">
+      {orders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Customer Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="customer-name">Name *</Label>
+              <Label htmlFor="customerName">Name</Label>
               <Input
-                id="customer-name"
+                id="customerName"
                 value={formData.customerName}
                 onChange={(e) => updateFormData({ customerName: e.target.value })}
                 placeholder="Enter your name"
@@ -615,64 +657,57 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
             </div>
 
             <div>
-              <Label>Order Type</Label>
+              <Label>Delivery Option</Label>
               <RadioGroup
                 value={formData.deliveryOption}
                 onValueChange={(value) => updateFormData({ deliveryOption: value as 'pickup' | 'delivery' })}
-                className="flex space-x-4 mt-2"
+                className="flex space-x-4"
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="pickup" id="pickup" />
-                  <Label htmlFor="pickup">Pickup</Label>
+                  <Label htmlFor="pickup" className="flex items-center">
+                    <Store className="w-4 h-4 mr-1" />
+                    Pickup
+                  </Label>
                 </div>
-                {restaurant.hasDelivery && (
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="delivery" id="delivery" />
-                    <Label htmlFor="delivery">
-                      Delivery (+${restaurant.deliveryPrice})
-                    </Label>
-                  </div>
-                )}
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="delivery" id="delivery" />
+                  <Label htmlFor="delivery" className="flex items-center">
+                    <Truck className="w-4 h-4 mr-1" />
+                    Delivery
+                  </Label>
+                </div>
               </RadioGroup>
             </div>
 
-            {formData.deliveryOption === 'delivery' && (
+            {formData.deliveryOption === 'delivery' ? (
               <div>
-                <Label htmlFor="delivery-address">Delivery Address *</Label>
-                <Textarea
-                  id="delivery-address"
+                <Label htmlFor="deliveryAddress">Delivery Address</Label>
+                <Input
+                  id="deliveryAddress"
                   value={formData.deliveryAddress}
                   onChange={(e) => updateFormData({ deliveryAddress: e.target.value })}
                   placeholder="Enter your delivery address"
-                  rows={3}
                 />
               </div>
-            )}
-
-            {formData.deliveryOption === 'pickup' && (
+            ) : (
               <div>
-                <Label htmlFor="pickup-time">Pickup Time *</Label>
+                <Label htmlFor="pickupTime">Pickup Time</Label>
                 <Input
-                  id="pickup-time"
+                  id="pickupTime"
                   value={formData.pickupTime}
                   onChange={(e) => updateFormData({ pickupTime: e.target.value })}
-                  placeholder="e.g., 12:30 PM"
+                  placeholder="Enter pickup time (e.g., 12:30 PM)"
                 />
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Send Order Button */}
-      {orders.length > 0 && (
-        <Button
-          onClick={sendOrder}
-          className="w-full bg-accent hover:bg-accent/90 text-white py-3 text-lg"
-        >
-          <ShoppingCart className="w-5 h-5 mr-2" />
-          Send Order via WhatsApp
-        </Button>
+            <Button onClick={sendOrder} className="w-full" size="lg">
+              <Send className="w-4 h-4 mr-2" />
+              Send Order via WhatsApp
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
