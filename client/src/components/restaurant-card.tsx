@@ -14,7 +14,7 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
     <Card className="restaurant-card overflow-hidden fade-in">
       <div className="relative cursor-pointer">
         <Link href={`/restaurant/${restaurant.id}/profile`}>
-          {restaurant.profilePictureUrl ? (
+          {restaurant.profilePictureUrl && restaurant.profilePictureUrl.trim() !== '' ? (
             <img 
               src={restaurant.profilePictureUrl} 
               alt={`${restaurant.name} restaurant exterior`}
@@ -22,13 +22,13 @@ export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
-                target.nextElementSibling?.classList.remove('hidden');
               }}
             />
-          ) : null}
-          <div className={`w-full h-48 bg-gradient-to-br from-secondary/20 to-accent/20 flex items-center justify-center ${restaurant.profilePictureUrl ? 'hidden' : ''}`}>
-            <Store className="w-12 h-12 text-primary/60" />
-          </div>
+          ) : (
+            <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+              <span className="text-gray-500 text-sm">No image available</span>
+            </div>
+          )}
         </Link>
         <div className="absolute top-4 right-4">
           <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-primary">

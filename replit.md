@@ -112,6 +112,11 @@ Changelog:
   * Customer information form with delivery/pickup
   * WhatsApp order integration
   * Order persistence in localStorage
+- June 19, 2025. Updated branding and fixed image display:
+  * Changed app title to "Restaurant Link, Food connection"
+  * Fixed profile image fetching from column #12 (Google Drive links)
+  * Removed placeholder image icons, show only actual images
+  * Fixed mix toggle button visibility with flexible category matching
 ```
 
 ## User Preferences

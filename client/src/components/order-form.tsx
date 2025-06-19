@@ -198,7 +198,8 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
     }
 
     // Mix-specific validations
-    if (formData.selectedCategory === 'main' && formData.isMixFood && !formData.selectedSecondMain) {
+    const isMainCategory = formData.selectedCategory && formData.selectedCategory.toLowerCase().includes('main');
+    if (isMainCategory && formData.isMixFood && !formData.selectedSecondMain) {
       toast({
         title: "Missing Second Main",
         description: "Please select a second main dish for mix meal",
@@ -207,7 +208,7 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       return;
     }
 
-    if (formData.selectedCategory === 'main' && 
+    if (isMainCategory && 
         formData.isMixFood && 
         formData.selectedSize !== 'Med' && formData.selectedSize !== 'Lrg') {
       toast({
@@ -225,9 +226,9 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       side: formData.selectedSide,
       veg: formData.selectedVeg,
       gravey: formData.selectedGravey,
-      isMix: formData.selectedCategory === 'main' && formData.isMixFood,
-      secondMain: formData.selectedCategory === 'main' && formData.isMixFood ? formData.selectedSecondMain : null,
-      secondMainSpecials: formData.selectedCategory === 'main' && formData.isMixFood ? Array.from(formData.selectedSecondMainSpecials) : [],
+      isMix: isMainCategory && formData.isMixFood,
+      secondMain: isMainCategory && formData.isMixFood ? formData.selectedSecondMain : null,
+      secondMainSpecials: isMainCategory && formData.isMixFood ? Array.from(formData.selectedSecondMainSpecials) : [],
     };
 
     setOrders(prev => [...prev, newOrder]);
@@ -382,7 +383,7 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
           {formData.selectedCategory && (
             <>
               {/* Mix Food Toggle for Main Category */}
-              {formData.selectedCategory === 'main' && (
+              {formData.selectedCategory && formData.selectedCategory.toLowerCase().includes('main') && (
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="mixFood"
@@ -414,7 +415,7 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
               </div>
 
               {/* Second Main for Mix Food */}
-              {formData.isMixFood && formData.selectedCategory === 'main' && formData.selectedMenuItem && (
+              {formData.isMixFood && formData.selectedCategory && formData.selectedCategory.toLowerCase().includes('main') && formData.selectedMenuItem && (
                 <div>
                   <Label>Select Second Main Dish</Label>
                   <Select 
