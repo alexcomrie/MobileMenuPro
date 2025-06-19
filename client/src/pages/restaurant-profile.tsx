@@ -14,7 +14,7 @@ export default function RestaurantProfile() {
 
   useEffect(() => {
     if (restaurant) {
-      document.title = `${restaurant.name} Profile - Restaurant Hub`;
+      document.title = `${restaurant.name} Profile - Restaurant Link, Food connection`;
     }
   }, [restaurant]);
 

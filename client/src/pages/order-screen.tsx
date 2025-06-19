@@ -17,7 +17,7 @@ export default function OrderScreen() {
 
   useEffect(() => {
     if (restaurant) {
-      document.title = `Order from ${restaurant.name} - Restaurant Hub`;
+      document.title = `Order from ${restaurant.name} - Restaurant Link, Food connection`;
     }
   }, [restaurant]);
 

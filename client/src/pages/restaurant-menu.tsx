@@ -13,12 +13,12 @@ export default function RestaurantMenu() {
   const { id } = useParams();
   const { data: restaurants, isLoading: restaurantsLoading } = useRestaurants();
   const restaurant = restaurants?.find(r => r.id === id);
-  const { data: menu, isLoading: menuLoading, refetch } = useMenu(restaurant);
-  const currentPeriod = useCurrentPeriod(restaurant);
+  const { data: menu, isLoading: menuLoading, refetch } = useMenu(restaurant ?? null);
+  const currentPeriod = useCurrentPeriod(restaurant ?? null);
 
   useEffect(() => {
     if (restaurant) {
-      document.title = `${restaurant.name} Menu - Restaurant Hub`;
+      document.title = `${restaurant.name} Menu - Restaurant Link, Food connection`;
     }
   }, [restaurant]);
 

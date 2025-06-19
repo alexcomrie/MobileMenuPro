@@ -94,8 +94,8 @@ export class RestaurantService {
           breakfastEndTime: this.parseTime(row[8]),
           lunchStartTime: this.parseTime(row[9]),
           lunchEndTime: this.parseTime(row[10]),
-          profilePictureUrl: this.getDirectImageUrl(row[11] || ''),
-          businessRegistrationUrl: this.getDirectImageUrl(row[12] || ''),
+          profilePictureUrl: this.getDirectImageUrl(row[12] || ''),
+          businessRegistrationUrl: this.getDirectImageUrl(row[11] || ''),
           menuSheetUrl: row[13] || '',
           status: row[14] || '',
           mixPrices: this.parseMixPrices(row[15] || '')

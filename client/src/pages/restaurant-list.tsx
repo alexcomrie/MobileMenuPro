@@ -20,7 +20,7 @@ export default function RestaurantList() {
 
   // Update page title
   useEffect(() => {
-    document.title = "Restaurant Hub - Order Local Food";
+    document.title = "Restaurant Link, Food connection";
   }, []);
 
   return (
@@ -33,8 +33,8 @@ export default function RestaurantList() {
               <UtensilsCrossed className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Restaurant Hub</h1>
-              <p className="text-sm opacity-90">Discover local flavors</p>
+              <h1 className="text-xl font-bold">Restaurant Link</h1>
+              <p className="text-sm opacity-90">Food connection</p>
             </div>
           </div>
           <Button

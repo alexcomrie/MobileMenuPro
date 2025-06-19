@@ -1,6 +1,6 @@
 {
-  "name": "Restaurant Hub",
-  "short_name": "RestaurantHub",
+  "name": "Restaurant Link, Food connection",
+  "short_name": "RestaurantLink",
   "description": "Order from local restaurants - Fresh food delivered or ready for pickup",
   "start_url": "/",
   "display": "standalone",
