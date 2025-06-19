@@ -103,6 +103,15 @@ The application prioritizes client-side functionality with Google Sheets serving
 ```
 Changelog:
 - June 19, 2025. Initial setup
+- June 19, 2025. Implemented comprehensive order functionality matching Flutter app:
+  * Mix meal support with second main dish selection
+  * Special selection with "choose one" logic and caps
+  * Size restrictions for mix meals (Med/Lrg only)
+  * Sides, vegetables, and gravy selections
+  * Detailed order summary with pricing
+  * Customer information form with delivery/pickup
+  * WhatsApp order integration
+  * Order persistence in localStorage
 ```
 
 ## User Preferences
