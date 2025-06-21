@@ -54,17 +54,18 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
     pickupTime: '',
   });
 
-  // Group menu items by category
+  // Group menu items by category with case-insensitive handling
   const menuByCategory = menuItems.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
+    const category = item.category.toLowerCase();
+    if (!acc[category]) {
+      acc[category] = [];
     }
-    acc[item.category].push(item);
+    acc[category].push(item);
     return acc;
   }, {} as Record<string, MenuItem[]>);
 
   const categories = Object.keys(menuByCategory);
-  const mainItems = menuByCategory['main'] || [];
+  const mainItems = [...(menuByCategory['main'] || []), ...(menuByCategory['mains'] || [])];
 
   // Load saved state from localStorage
   useEffect(() => {
@@ -170,6 +171,9 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       selectedSide: '',
       selectedVeg: '',
       selectedGravey: '',
+      isMixFood: formData.isMixFood,
+      selectedSecondMain: formData.selectedSecondMain,
+      selectedSecondMainSpecials: formData.selectedSecondMainSpecials
     });
   };
 
