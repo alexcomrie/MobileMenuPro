@@ -156,20 +156,12 @@ export default function RestaurantProfile() {
             </CardContent>
           </Card>
 
-          {/* Business Registration */}
-          {restaurant.businessRegistrationUrl && (
+          {/* Business Bio */}
+          {restaurant.businessBio && (
             <Card className="fade-in">
               <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Registration</h3>
-                <img 
-                  src={restaurant.businessRegistrationUrl} 
-                  alt={`Business registration certificate for ${restaurant.name}`}
-                  className="w-full max-h-64 object-contain border rounded"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.parentElement!.innerHTML = '<p class="text-gray-500 text-sm">Registration document not available</p>';
-                  }}
-                />
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Business Bio</h3>
+                <p className="text-gray-700 whitespace-pre-wrap">{restaurant.businessBio}</p>
               </CardContent>
             </Card>
           )}

@@ -19,7 +19,7 @@ export const RestaurantSchema = z.object({
   lunchStartTime: TimeOfDaySchema,
   lunchEndTime: TimeOfDaySchema,
   profilePictureUrl: z.string(),
-  businessRegistrationUrl: z.string(),
+  businessBio: z.string(),
   menuSheetUrl: z.string(),
   status: z.string(),
   mixPrices: z.record(z.string(), z.number())

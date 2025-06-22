@@ -292,6 +292,11 @@ export default function OrderForm({ restaurant, menuItems, selectedItem, onOrder
       summary += `Price: $${price.toFixed(2)}\n\n`;
     });
 
+    if (formData.deliveryOption === 'delivery' && restaurant.hasDelivery) {
+      summary += `Delivery Fee: $${restaurant.deliveryPrice.toFixed(2)}\n`;
+      totalPrice += restaurant.deliveryPrice;
+    }
+
     summary += `Total: $${totalPrice.toFixed(2)}`;
     return summary;
   };
