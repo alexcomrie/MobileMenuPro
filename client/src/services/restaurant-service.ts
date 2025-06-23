@@ -94,8 +94,8 @@ export class RestaurantService {
           breakfastEndTime: this.parseTime(row[8]),
           lunchStartTime: this.parseTime(row[9]),
           lunchEndTime: this.parseTime(row[10]),
-          profilePictureUrl: this.getDirectImageUrl(row[12] || ''),
-          businessBio: row[11] || '',
+          profilePictureUrl: this.getDirectImageUrl(row[11] || ''),
+          businessBio: row[12] || '',
           menuSheetUrl: row[13] || '',
           status: row[14] || '',
           mixPrices: this.parseMixPrices(row[15] || '')
@@ -193,6 +193,46 @@ export class RestaurantService {
     return prices;
   }
 
+  private static getDirectImageUrl(url: string): string {
+    // Return empty string for null/undefined URLs
+    if (!url) return '';
+    
+    // Handle external URLs (non-Google Drive)
+    if (!url.includes('drive.google.com')) {
+      // Validate URL format
+      try {
+        new URL(url); // This will throw an error if URL is invalid
+        return url;   // Return valid URL as is
+      } catch (e) {
+        console.error('Invalid URL format:', url);
+        return ''; // Return empty string for invalid URLs
+      }
+    }
+    
+    // Handle /file/d/ format
+    let fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1] || fileIdMatch[2];
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    
+    // Handle id= format
+    fileIdMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1];
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    
+    // Handle open?id= format
+    fileIdMatch = url.match(/open\?id=([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1];
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    }
+    
+    return url;
+  }
+
   private static parseItemPrices(priceStr: string): Record<string, number> {
     const prices: Record<string, number> = {};
     if (!priceStr) return prices;
@@ -210,17 +250,6 @@ export class RestaurantService {
       }
     }
     return prices;
-  }
-
-  private static getDirectImageUrl(url: string): string {
-    if (!url || !url.includes('drive.google.com')) return url;
-    
-    const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (fileIdMatch) {
-      const fileId = fileIdMatch[1] || fileIdMatch[2];
-      return `https://drive.google.com/uc?export=view&id=${fileId}`;
-    }
-    return url;
   }
 
   static filterMenuByPeriod(menu: Record<string, MenuItem[]>, period: string): Record<string, MenuItem[]> {

@@ -10,26 +10,10 @@ interface RestaurantCardProps {
 }
 
 export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
+
   return (
     <Card className="restaurant-card overflow-hidden fade-in">
-      <div className="relative cursor-pointer">
-        <Link href={`/restaurant/${restaurant.id}/profile`}>
-          {restaurant.profilePictureUrl && restaurant.profilePictureUrl.trim() !== '' ? (
-            <img 
-              src={restaurant.profilePictureUrl} 
-              alt={`${restaurant.name} restaurant exterior`}
-              className="w-full h-48 object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
-          ) : (
-            <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-500 text-sm">No image available</span>
-            </div>
-          )}
-        </Link>
+      <div className="relative">
         <div className="absolute top-4 right-4">
           <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm text-primary">
             {restaurant.hasDelivery ? (
